@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var feedback: StatusFeedback?
     private var correctionController: CorrectionController?
     private var rewriteBarController: RewriteBarController?
+    private var settingsWindowController: SettingsWindowController?
     private var commandHotkeyMonitor: HotkeyMonitor?
     private var optionHotkeyMonitor: HotkeyMonitor?
     private var accessibilityItem: NSMenuItem?
@@ -14,22 +15,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        setupMainMenu()
         setupMenuBar()
         _ = AccessibilityPermission.requestIfNeeded()
         updateAccessibilityMenuItem()
 
         do {
-            let config = try configStore.loadOrCreate()
-            let fastProvider = try ProviderFactory.makeFastProvider(config: config)
-            let smartProvider = Result { try ProviderFactory.makeSmartProvider(config: config) }
+            _ = try configStore.loadOrCreate()
             guard let feedback else { return }
             correctionController = CorrectionController(
-                provider: fastProvider,
+                configStore: configStore,
                 feedback: feedback,
                 operationGate: operationGate
             )
             rewriteBarController = RewriteBarController(
-                smartProvider: smartProvider,
+                configStore: configStore,
                 operationGate: operationGate
             )
             commandHotkeyMonitor = HotkeyMonitor(modifier: .command) { [weak self] in
@@ -58,6 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func openSettings() {
+        let controller = settingsWindowController ?? SettingsWindowController(configStore: configStore)
+        settingsWindowController = controller
+        controller.show()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
@@ -73,6 +79,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Fix current input", action: #selector(fixCurrentInput), keyEquivalent: ""))
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.keyEquivalentModifierMask = [.command]
+        menu.addItem(settingsItem)
         menu.addItem(NSMenuItem(title: "Open config", action: #selector(openConfig), keyEquivalent: ""))
         menu.addItem(.separator())
 
@@ -86,6 +95,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = item
         feedback = StatusFeedback(item: item, normalTitle: "Tx")
+    }
+
+    private func setupMainMenu() {
+        let mainMenu = NSMenu()
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu()
+
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.keyEquivalentModifierMask = [.command]
+        appMenu.addItem(settingsItem)
+        appMenu.addItem(.separator())
+        appMenu.addItem(NSMenuItem(title: "Quit Typofix", action: #selector(quit), keyEquivalent: "q"))
+
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+        NSApp.mainMenu = mainMenu
     }
 
     private func updateAccessibilityMenuItem() {

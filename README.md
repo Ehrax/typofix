@@ -31,9 +31,23 @@ Use Up/Down, Ctrl+J/K, or keys `1`, `2`, and `3` to select a variant, Enter to p
 
 macOS may reserve double-Command for Siri. Disable that shortcut in System Settings before relying on the typofix hotkey.
 
+Choose `Settings…` from the `Tx` menu to edit models and API keys. `Cmd+,` also opens settings while a Typofix window is key. Changes are saved to `~/.config/typofix/config.json` and apply on the next fix or rewrite trigger. `Open config` remains available in the menu for direct JSON editing.
+
 ## Accessibility Permission
 
 typofix posts keyboard events for Command-A, Command-C, and Command-V, so macOS Accessibility permission is required. The app prompts on launch and shows the current status in the menu. If permission is missing, open System Settings and allow typofix under Privacy & Security > Accessibility.
+
+## Release And Install
+
+Build the app bundle and zip:
+
+```sh
+Scripts/build-app.sh
+```
+
+The script creates `dist/Typofix.app` and `dist/Typofix-0.1.0.zip`. It signs with the first available `Developer ID Application` identity in your keychain, or uses ad-hoc signing if no Developer ID identity is available.
+
+To install, drag `dist/Typofix.app` to `/Applications` and launch it from there. Grant Accessibility permission to `Typofix.app` itself in System Settings > Privacy & Security > Accessibility. For unsigned or ad-hoc builds, Gatekeeper may require right-clicking `Typofix.app` and choosing Open the first time.
 
 ## Config
 

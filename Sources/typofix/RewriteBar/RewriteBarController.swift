@@ -2,7 +2,7 @@ import AppKit
 
 @MainActor
 final class RewriteBarController {
-    private let smartProvider: Result<any LLMProvider, Error>
+    private let configStore: ConfigStore
     private let operationGate: OperationGate
     private var captured: CapturedFocusedText?
     private var panel: RewritePanel?
@@ -18,8 +18,8 @@ final class RewriteBarController {
     private var isProgrammaticResize = false
     private var isClosing = false
 
-    init(smartProvider: Result<any LLMProvider, Error>, operationGate: OperationGate) {
-        self.smartProvider = smartProvider
+    init(configStore: ConfigStore, operationGate: OperationGate) {
+        self.configStore = configStore
         self.operationGate = operationGate
     }
 
@@ -67,7 +67,7 @@ final class RewriteBarController {
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(barView)
 
-        switch smartProvider {
+        switch makeSmartProvider() {
         case .success(let provider):
             requestInitialVariants(provider: provider)
         case .failure:
@@ -133,7 +133,7 @@ final class RewriteBarController {
     }
 
     private func requestInstructionVariant(_ instruction: String) {
-        switch smartProvider {
+        switch makeSmartProvider() {
         case .success(let provider):
             replaceWithInstructionVariant()
             selectedID = .instruction
@@ -142,6 +142,13 @@ final class RewriteBarController {
             replaceWithInstructionVariant()
             selectedID = .instruction
             setVariant(.instruction, loading: false, result: nil, errorText: "Add anthropicApiKey to config")
+        }
+    }
+
+    private func makeSmartProvider() -> Result<any LLMProvider, Error> {
+        Result {
+            let config = try configStore.loadOrCreate()
+            return try ProviderFactory.makeSmartProvider(config: config)
         }
     }
 

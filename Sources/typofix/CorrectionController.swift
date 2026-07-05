@@ -2,12 +2,12 @@ import AppKit
 
 @MainActor
 final class CorrectionController {
-    private let provider: any LLMProvider
+    private let configStore: ConfigStore
     private let feedback: StatusFeedback
     private let operationGate: OperationGate
 
-    init(provider: any LLMProvider, feedback: StatusFeedback, operationGate: OperationGate) {
-        self.provider = provider
+    init(configStore: ConfigStore, feedback: StatusFeedback, operationGate: OperationGate) {
+        self.configStore = configStore
         self.feedback = feedback
         self.operationGate = operationGate
     }
@@ -31,6 +31,9 @@ final class CorrectionController {
     }
 
     private func runCorrection() async throws {
+        let config = try configStore.loadOrCreate()
+        let provider = try ProviderFactory.makeFastProvider(config: config)
+
         guard let captured = try await FocusedTextIO.captureCurrentFieldText() else {
             return
         }

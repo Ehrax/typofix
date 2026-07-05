@@ -63,6 +63,17 @@ else
     codesign --force --deep -s - "$APP_DIR"
 fi
 
+NOTARY_PROFILE="${NOTARY_PROFILE:-typofix-notary}"
+if [[ -n "$developer_id_identity" ]] && xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+    echo "Notarizing with keychain profile: $NOTARY_PROFILE"
+    ditto -c -k --keepParent "$APP_DIR" "$DIST_DIR/$APP_NAME-notary.zip"
+    xcrun notarytool submit "$DIST_DIR/$APP_NAME-notary.zip" --keychain-profile "$NOTARY_PROFILE" --wait
+    rm -f "$DIST_DIR/$APP_NAME-notary.zip"
+    xcrun stapler staple "$APP_DIR"
+else
+    echo "Skipping notarization (no Developer ID identity or notary profile '$NOTARY_PROFILE' not found)"
+fi
+
 ditto -c -k --keepParent "$APP_DIR" "$DIST_DIR/$APP_NAME-$VERSION.zip"
 
 echo "Built $APP_DIR"

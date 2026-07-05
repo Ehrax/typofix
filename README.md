@@ -18,7 +18,8 @@ Works great in German and English. Your voice is preserved — smileys, casual r
 3. Click the `Tx` menu bar icon → **Settings…** and add your API keys:
    - **Groq** (fast typo fix) — free key at [console.groq.com](https://console.groq.com), no credit card. Groq doesn't train on your data.
    - **Anthropic** (rewrite bar) — key at [console.anthropic.com](https://console.anthropic.com); typical personal usage costs well under $1/month.
-4. If double-⌘ triggers Siri, turn that shortcut off: System Settings → Apple Intelligence & Siri → Keyboard shortcut.
+4. Optional: enable **Launch at Login** from the `Tx` menu or Settings.
+5. If double-⌘ triggers Siri, turn that shortcut off: System Settings → Apple Intelligence & Siri → Keyboard shortcut.
 
 Requires macOS 26 (Tahoe) or later.
 
@@ -69,7 +70,7 @@ Scripts/build-app.sh       # release: builds, signs, notarizes*, zips dist/Typof
 
 ## Roadmap
 
-See [open issues](https://github.com/Ehrax/typofix/issues) — next up: style memory (it learns how *you* write from the variants you pick), launch at login, a proper app icon.
+See [open issues](https://github.com/Ehrax/typofix/issues) — next up: style memory (it learns how *you* write from the variants you pick) and a proper app icon.
 
 Contributions and issue reports welcome.
 

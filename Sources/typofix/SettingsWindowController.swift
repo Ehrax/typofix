@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let configStore: ConfigStore
+    var launchAtLoginDidChange: (() -> Void)?
 
     private let fastModelField = NSTextField()
     private let fastKeySecureField = NSSecureTextField()
@@ -14,6 +15,9 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let smartKeyTextField = NSTextField()
     private let smartShowButton = NSButton(checkboxWithTitle: "Show", target: nil, action: nil)
 
+    private let launchAtLoginButton = NSButton(checkboxWithTitle: "Launch at login", target: nil, action: nil)
+    private let launchAtLoginErrorLabel = NSTextField(wrappingLabelWithString: "")
+
     private var config = TypofixConfig.defaults
     private var isLoading = false
 
@@ -21,7 +25,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         self.configStore = configStore
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 258),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 306),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -43,6 +47,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     func show() {
         loadConfig()
+        refreshLaunchAtLogin()
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -72,6 +77,19 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         }
     }
 
+    @objc private func launchAtLoginChanged(_ sender: NSButton) {
+        let requestedState = sender.state == .on
+
+        do {
+            try LaunchAtLogin.setEnabled(requestedState)
+            refreshLaunchAtLogin()
+            launchAtLoginDidChange?()
+        } catch {
+            refreshLaunchAtLogin(errorMessage: error.localizedDescription)
+            launchAtLoginDidChange?()
+        }
+    }
+
     private func makeContentView() -> NSView {
         [fastModelField, fastKeySecureField, fastKeyTextField, smartModelField, smartKeySecureField, smartKeyTextField].forEach {
             $0.delegate = self
@@ -83,6 +101,10 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         fastShowButton.action = #selector(showButtonChanged(_:))
         smartShowButton.target = self
         smartShowButton.action = #selector(showButtonChanged(_:))
+        launchAtLoginButton.target = self
+        launchAtLoginButton.action = #selector(launchAtLoginChanged(_:))
+        launchAtLoginErrorLabel.textColor = .systemRed
+        launchAtLoginErrorLabel.isHidden = true
 
         let stack = NSStackView()
         stack.orientation = .vertical
@@ -102,6 +124,10 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             ("Provider", NSTextField(labelWithString: "Anthropic")),
             ("Model", smartModelField),
             ("API key", keyFieldStack(secureField: smartKeySecureField, textField: smartKeyTextField, showButton: smartShowButton))
+        ]))
+
+        stack.addArrangedSubview(grid(rows: [
+            ("", launchAtLoginStack())
         ]))
 
         let saveButton = NSButton(title: "Save", target: self, action: #selector(saveButtonClicked))
@@ -166,6 +192,19 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         return stack
     }
 
+    private func launchAtLoginStack() -> NSStackView {
+        let stack = NSStackView(views: [launchAtLoginButton, launchAtLoginErrorLabel])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 4
+
+        NSLayoutConstraint.activate([
+            launchAtLoginErrorLabel.widthAnchor.constraint(equalToConstant: 292)
+        ])
+
+        return stack
+    }
+
     private func loadConfig() {
         isLoading = true
         defer { isLoading = false }
@@ -182,6 +221,15 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         smartModelField.stringValue = config.smartModel
         smartKeySecureField.stringValue = config.anthropicApiKey ?? ""
         smartKeyTextField.stringValue = config.anthropicApiKey ?? ""
+    }
+
+    private func refreshLaunchAtLogin(errorMessage: String? = nil) {
+        launchAtLoginButton.state = LaunchAtLogin.isEnabled ? .on : .off
+        launchAtLoginButton.isEnabled = LaunchAtLogin.isAvailable
+        launchAtLoginButton.toolTip = LaunchAtLogin.isAvailable ? nil : LaunchAtLogin.unavailableTooltip
+
+        launchAtLoginErrorLabel.stringValue = errorMessage ?? ""
+        launchAtLoginErrorLabel.isHidden = errorMessage == nil
     }
 
     private func saveConfig() {

@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let configStore = ConfigStore()
     private var statusItem: NSStatusItem?
     private var feedback: StatusFeedback?
@@ -11,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var commandHotkeyMonitor: HotkeyMonitor?
     private var optionHotkeyMonitor: HotkeyMonitor?
     private var accessibilityItem: NSMenuItem?
+    private var launchAtLoginItem: NSMenuItem?
+    private var launchAtLoginErrorItem: NSMenuItem?
     private let operationGate = OperationGate()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -60,6 +62,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         let controller = settingsWindowController ?? SettingsWindowController(configStore: configStore)
+        controller.launchAtLoginDidChange = { [weak self] in
+            self?.updateLaunchAtLoginMenuItem()
+        }
         settingsWindowController = controller
         controller.show()
     }
@@ -72,17 +77,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateAccessibilityMenuItem()
     }
 
+    @objc private func toggleLaunchAtLogin() {
+        let requestedState = !LaunchAtLogin.isEnabled
+
+        do {
+            try LaunchAtLogin.setEnabled(requestedState)
+            updateLaunchAtLoginMenuItem()
+        } catch {
+            updateLaunchAtLoginMenuItem(errorMessage: error.localizedDescription)
+        }
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        updateLaunchAtLoginMenuItem()
+        updateAccessibilityMenuItem()
+    }
+
     private func setupMenuBar() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.title = "Tx"
         item.button?.toolTip = "Typofix"
 
         let menu = NSMenu()
+        menu.delegate = self
         menu.addItem(NSMenuItem(title: "Fix current input", action: #selector(fixCurrentInput), keyEquivalent: ""))
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.keyEquivalentModifierMask = [.command]
         menu.addItem(settingsItem)
         menu.addItem(NSMenuItem(title: "Open config", action: #selector(openConfig), keyEquivalent: ""))
+        menu.addItem(.separator())
+
+        let launchAtLogin = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        menu.addItem(launchAtLogin)
+        launchAtLoginItem = launchAtLogin
+
+        let launchAtLoginError = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        launchAtLoginError.isEnabled = false
+        launchAtLoginError.isHidden = true
+        menu.addItem(launchAtLoginError)
+        launchAtLoginErrorItem = launchAtLoginError
+
         menu.addItem(.separator())
 
         let accessibility = NSMenuItem(title: "", action: #selector(refreshAccessibilityStatus), keyEquivalent: "")
@@ -95,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = item
         feedback = StatusFeedback(item: item, normalTitle: "Tx")
+        updateLaunchAtLoginMenuItem()
     }
 
     private func setupMainMenu() {
@@ -119,5 +154,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? "Accessibility: allowed"
             : "Accessibility: required for typing"
         accessibilityItem?.isEnabled = !trusted
+    }
+
+    private func updateLaunchAtLoginMenuItem(errorMessage: String? = nil) {
+        launchAtLoginItem?.state = LaunchAtLogin.isEnabled ? .on : .off
+        launchAtLoginItem?.isEnabled = LaunchAtLogin.isAvailable
+        launchAtLoginItem?.toolTip = LaunchAtLogin.isAvailable ? nil : LaunchAtLogin.unavailableTooltip
+
+        launchAtLoginErrorItem?.title = errorMessage ?? ""
+        launchAtLoginErrorItem?.isHidden = errorMessage == nil
     }
 }

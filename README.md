@@ -1,104 +1,78 @@
-# typofix
+# Typofix
 
-`typofix` is a macOS 26+ menu bar utility that fixes or rewrites the text field you are currently editing. It selects the current input, copies it, sends the text to an LLM, pastes the chosen result back, then restores your previous string clipboard contents on a best-effort basis.
+**Fix typos anywhere on your Mac with a double-tap. Rewrite anything with a Spotlight-style bar.**
 
-It is a Swift Package Manager executable only: no Xcode project and no external dependencies.
+Typofix is a tiny macOS menu bar app that works in *any* text field — Slack, Mail, your browser, anywhere you type:
 
-## Run
+- **⌘ ⌘ (double-tap Command)** — instantly fixes spelling, grammar, and typos in the current field. Sub-second, silent, keeps your tone.
+- **⌥ ⌥ (double-tap Option)** — opens a Spotlight-style rewrite bar with five variants of what you wrote: **Auf den Punkt** (tightened), **Polished**, **Kürzer**, **Freundlicher**, **Formeller** — plus a free-text instruction field ("mach es freundlicher"). Pick with `1–5`, arrows, or `Ctrl+J/K`, hit Enter, done.
 
-```sh
-export GROQ_API_KEY="your-groq-api-key"
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-swift run typofix
-```
+Works great in German and English. Your voice is preserved — smileys, casual register, and all. `:D`
 
-On first launch, typofix creates:
+<!-- ![Rewrite bar](docs/rewrite-bar.png) -->
 
-```text
-~/.config/typofix/config.json
-```
+## Install
 
-## Usage
+1. Download the latest `Typofix-x.y.z.zip` from [Releases](https://github.com/Ehrax/typofix/releases), unzip, and drag `Typofix.app` to `/Applications`. The app is signed and notarized — it just opens.
+2. Launch it. Grant **Accessibility** permission when prompted (System Settings → Privacy & Security → Accessibility) — Typofix needs it to read and replace the text field you're editing.
+3. Click the `Tx` menu bar icon → **Settings…** and add your API keys:
+   - **Groq** (fast typo fix) — free key at [console.groq.com](https://console.groq.com), no credit card. Groq doesn't train on your data.
+   - **Anthropic** (rewrite bar) — key at [console.anthropic.com](https://console.anthropic.com); typical personal usage costs well under $1/month.
+4. If double-⌘ triggers Siri, turn that shortcut off: System Settings → Apple Intelligence & Siri → Keyboard shortcut.
 
-Use the menu bar item `Tx` and choose `Fix current input`, or double-tap the Command key. The hotkey is two isolated Command presses within 350 ms. If another key is pressed while Command is down, the sequence is cancelled. This instant-fix flow is the fast path and keeps using `provider`, `model`, and `apiKey`.
+Requires macOS 26 (Tahoe) or later.
 
-Double-tap Option to open the Spotlight-style rewrite bar. It captures the current field text and shows two smart variants:
+## How it works
 
-- `Auf den Punkt`: tightens the text, cutting filler and redundancy while preserving voice, language, greetings, and sign-offs.
-- `Polished`: fixes grammar and improves flow while preserving meaning, tone, and language.
+Typofix simulates ⌘A/⌘C to capture your current field, sends the text to an LLM with a strict "fix, don't change" prompt, pastes the result back, and restores your clipboard. No accounts, no telemetry, no server of ours — your text goes only to the LLM provider you configure, and your keys stay in `~/.config/typofix/config.json` on your machine.
 
-Use Up/Down, Ctrl+J/K, or keys `1`, `2`, and `3` to select a variant, Enter to paste the selected result, and Esc to close without changing the field. Type a custom instruction in the bottom field and press Enter to request a third variant; a new instruction replaces the previous instruction result.
+The rewrite prompt is hardened: your text is treated as content, never as instructions; emojis, URLs, names, and numbers are preserved verbatim; casual register is never escalated (except in the deliberate "Formeller" variant).
 
-macOS may reserve double-Command for Siri. Disable that shortcut in System Settings before relying on the typofix hotkey.
+## Configuration
 
-Choose `Settings…` from the `Tx` menu to edit models and API keys. `Cmd+,` also opens settings while a Typofix window is key. Changes are saved to `~/.config/typofix/config.json` and apply on the next fix or rewrite trigger. `Open config` remains available in the menu for direct JSON editing.
-
-## Accessibility Permission
-
-typofix posts keyboard events for Command-A, Command-C, and Command-V, so macOS Accessibility permission is required. The app prompts on launch and shows the current status in the menu. If permission is missing, open System Settings and allow typofix under Privacy & Security > Accessibility.
-
-## Release And Install
-
-Build the app bundle and zip:
-
-```sh
-Scripts/build-app.sh
-```
-
-The script creates `dist/Typofix.app` and `dist/Typofix-0.1.0.zip`. It signs with the first available `Developer ID Application` identity in your keychain, or uses ad-hoc signing if no Developer ID identity is available.
-
-To install, drag `dist/Typofix.app` to `/Applications` and launch it from there. Grant Accessibility permission to `Typofix.app` itself in System Settings > Privacy & Security > Accessibility. For unsigned or ad-hoc builds, Gatekeeper may require right-clicking `Typofix.app` and choosing Open the first time.
-
-## Config
-
-The config file is JSON:
+Settings UI covers the common cases. The underlying JSON at `~/.config/typofix/config.json`:
 
 ```json
 {
-  "anthropicApiKey": null,
-  "apiKey": null,
-  "apiKeyEnvVar": null,
-  "model": "llama-3.1-8b-instant",
   "provider": "groq",
+  "model": "llama-3.1-8b-instant",
+  "apiKey": "gsk_…",
+  "smartProvider": "anthropic",
   "smartModel": "claude-sonnet-5",
-  "smartProvider": "anthropic"
+  "anthropicApiKey": "sk-ant-…"
 }
 ```
 
-Fast-path API key resolution order:
+Keys can alternatively come from `GROQ_API_KEY` / `ANTHROPIC_API_KEY` environment variables.
 
-1. `apiKey` in the config file.
-2. The configured `apiKeyEnvVar`, if set.
-3. `GROQ_API_KEY`.
+### Swapping providers or models
 
-Smart rewrite API key resolution order:
-
-1. `anthropicApiKey` in the config file.
-2. `ANTHROPIC_API_KEY`.
-
-If no smart key is available, the rewrite bar opens and shows `Add anthropicApiKey to config` instead of crashing.
-
-The default fast provider is `groq`, using Groq's OpenAI-compatible chat completions endpoint:
-
-```text
-https://api.groq.com/openai/v1/chat/completions
-```
-
-The default smart provider is `anthropic`, using Anthropic's OpenAI-compatible chat completions endpoint:
-
-```text
-https://api.anthropic.com/v1/chat/completions
-```
-
-## Swapping Providers Or Models
-
-Change `model` to use a different fast model, or `smartModel` to use a different rewrite model. Provider construction is isolated behind `ProviderFactory`, and the runtime depends on the `LLMProvider` protocol:
+Both paths use OpenAI-compatible chat-completions endpoints behind a small `LLMProvider` protocol, so switching models is a config edit and adding a provider (Gemini, Cerebras, a local Ollama…) is a few lines in `ProviderFactory`:
 
 ```swift
 protocol LLMProvider {
     func correct(_ text: String) async throws -> String
-    func rewrite(_ text: String, instruction: String, temperature: Double) async throws -> String
+    func rewrite(_ text: String, instruction: String, temperature: Double?) async throws -> String
 }
 ```
 
-Groq and Anthropic are both backed by `OpenAICompatibleProvider(baseURL:apiKey:model:systemPrompt:)`. To add another OpenAI-compatible provider, add a provider name in `ProviderFactory` and update `provider` or `smartProvider` in the config.
+## Building from source
+
+Swift Package Manager only — no Xcode project, zero dependencies:
+
+```sh
+swift run typofix          # dev run (grant Accessibility to your terminal)
+Scripts/build-app.sh       # release: builds, signs, notarizes*, zips dist/Typofix.app
+```
+
+\* Signing uses the first `Developer ID Application` identity in your keychain and notarizes via the `typofix-notary` keychain profile; without them it falls back to ad-hoc signing (then use right-click → Open on first launch).
+
+## Roadmap
+
+See [open issues](https://github.com/Ehrax/typofix/issues) — next up: style memory (it learns how *you* write from the variants you pick), launch at login, a proper app icon.
+
+Contributions and issue reports welcome.
+
+## License
+
+[MIT](LICENSE)

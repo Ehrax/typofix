@@ -48,7 +48,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         let variants = Self.parseVariants(from: content)
 
         guard variants.count == 5 else {
-            throw ProviderError.invalidResponse
+            throw ProviderError.unparseableVariants(reply: content)
         }
 
         return variants

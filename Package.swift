@@ -14,6 +14,11 @@ let package = Package(
         .executableTarget(
             name: "typofix",
             path: "Sources/typofix"
+        ),
+        .testTarget(
+            name: "typofixTests",
+            dependencies: ["typofix"],
+            path: "Tests/typofixTests"
         )
     ]
 )

@@ -10,6 +10,7 @@ enum ProviderError: LocalizedError {
     case unsupportedProvider(String)
     case missingAPIKey(String)
     case invalidResponse
+    case unparseableVariants(reply: String)
     case httpError(statusCode: Int, message: String?)
     case emptyResponse
 
@@ -21,6 +22,8 @@ enum ProviderError: LocalizedError {
             "Missing API key. Set \(name) or add the matching key to config."
         case .invalidResponse:
             "The provider returned an invalid response."
+        case .unparseableVariants(let reply):
+            "Could not parse 5 rewrite variants from the reply: \(reply.prefix(280))"
         case .httpError(let statusCode, let message):
             if let message, !message.isEmpty {
                 "HTTP \(statusCode): \(message)"

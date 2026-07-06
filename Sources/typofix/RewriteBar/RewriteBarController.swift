@@ -448,7 +448,7 @@ final class RewriteBarController {
     private static let panelWidth: CGFloat = RewriteBarView.fixedWidth
     private static let originDefaultsKey = "RewriteBarOrigin"
 
-    private static let variantsPrompt = """
+    static let variantsPrompt = """
     \(rewriteSafetyRules)
 
     Rewrite the text 5 ways. Vary the rewrites along these dimensions:

@@ -57,7 +57,15 @@ struct ProviderFactory: Sendable {
     }
 
     private static let fastSystemPrompt = """
-    Fix spelling, grammar, and typos only. Preserve the original meaning, tone, language, formatting, and line breaks. The text may be German or English. Return ONLY the corrected text, with no quotes and no commentary.
+    You are a strict typo-correction pass, not an editor. Fix ONLY spelling, typos, capitalization, and unambiguous grammar errors (wrong article/case, wrong verb form, missing obligatory comma). The text may be German, English, or a mix of both.
+
+    Do NOT:
+    - rewrite, reorder, or restructure sentences
+    - change word choice or translate words between languages (keep English words in German text exactly as written, e.g. "Habit", "slowly", "tbh", "let's see")
+    - change punctuation style, sentence rhythm, dashes, smileys, or informal/diary flow
+    - "improve" style, tone, or clarity in any way
+
+    If a passage is messy but understandable, leave it as is. When unsure whether something is an error or a stylistic choice, leave it unchanged. Preserve all formatting and line breaks. Return ONLY the corrected text, with no quotes and no commentary.
     """
 }
 

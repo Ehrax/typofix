@@ -5,12 +5,17 @@ struct OpenAICompatibleProvider: LLMProvider {
     private let apiKey: String
     private let model: String
     private let systemPrompt: String
+    /// The model's maximum output tokens. We always request this so a reply is
+    /// never truncated — `max_tokens` is only a ceiling, so the model still
+    /// stops at end-of-turn and we're billed for what it actually generates.
+    private let maxOutputTokens: Int
 
-    init(baseURL: URL, apiKey: String, model: String, systemPrompt: String) {
+    init(baseURL: URL, apiKey: String, model: String, systemPrompt: String, maxOutputTokens: Int) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.model = model
         self.systemPrompt = systemPrompt
+        self.maxOutputTokens = maxOutputTokens
     }
 
     func correct(_ text: String) async throws -> String {
@@ -20,7 +25,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 ChatMessage(role: "user", content: text)
             ],
             temperature: 0.2,
-            maxTokens: Self.maxTokens(for: text)
+            maxTokens: maxOutputTokens
         )
     }
 
@@ -31,7 +36,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 ChatMessage(role: "user", content: text)
             ],
             temperature: temperature,
-            maxTokens: Self.maxTokens(for: text, completionPadding: 1024)
+            maxTokens: maxOutputTokens
         )
     }
 
@@ -42,7 +47,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 ChatMessage(role: "user", content: text)
             ],
             temperature: nil,
-            maxTokens: Self.variantMaxTokens(for: text)
+            maxTokens: maxOutputTokens
         )
 
         let variants = Self.parseVariants(from: content)
@@ -108,16 +113,6 @@ struct OpenAICompatibleProvider: LLMProvider {
         }
 
         return content
-    }
-
-    private static func maxTokens(for text: String, completionPadding: Int = 256) -> Int {
-        let estimatedInputTokens = max(64, text.count / 3)
-        return min(4096, max(256, estimatedInputTokens + completionPadding))
-    }
-
-    private static func variantMaxTokens(for text: String) -> Int {
-        let estimatedInputTokens = max(64, text.count / 3)
-        return min(8192, max(1024, estimatedInputTokens * 5 + 1024))
     }
 
     private static func stripMarkdownFences(from content: String) -> String {

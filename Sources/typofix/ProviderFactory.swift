@@ -17,7 +17,8 @@ struct ProviderFactory: Sendable {
                 baseURL: URL(string: "https://api.groq.com/openai/v1/chat/completions")!,
                 apiKey: apiKey,
                 model: config.model,
-                systemPrompt: Self.fastSystemPrompt
+                systemPrompt: Self.fastSystemPrompt,
+                maxOutputTokens: Self.groqMaxOutputTokens
             )
         default:
             throw ProviderError.unsupportedProvider(config.provider)
@@ -38,7 +39,8 @@ struct ProviderFactory: Sendable {
                 baseURL: URL(string: "https://api.anthropic.com/v1/chat/completions")!,
                 apiKey: apiKey,
                 model: config.smartModel,
-                systemPrompt: Self.fastSystemPrompt
+                systemPrompt: Self.fastSystemPrompt,
+                maxOutputTokens: Self.anthropicMaxOutputTokens
             )
         case "groq":
             let fastConfig = TypofixConfig(
@@ -55,6 +57,12 @@ struct ProviderFactory: Sendable {
             throw ProviderError.unsupportedProvider(config.smartProvider)
         }
     }
+
+    // Each model's maximum output tokens. Requested on every call so replies are
+    // never truncated; the model still stops at end-of-turn, so this is a ceiling,
+    // not a target, and doesn't affect cost.
+    private static let groqMaxOutputTokens = 32768        // llama-3.3-70b-versatile
+    private static let anthropicMaxOutputTokens = 64000   // safe across Claude 4.x (incl. Haiku 64K)
 
     private static let fastSystemPrompt = """
     You are a strict typo-correction pass, not an editor. Fix ONLY spelling, typos, capitalization, and unambiguous grammar errors (wrong article/case, wrong verb form, missing obligatory comma). The text may be German, English, or a mix of both.

@@ -78,3 +78,5 @@ ditto -c -k --keepParent "$APP_DIR" "$DIST_DIR/$APP_NAME-$VERSION.zip"
 
 echo "Built $APP_DIR"
 echo "Created $DIST_DIR/$APP_NAME-$VERSION.zip"
+
+open "$DIST_DIR"

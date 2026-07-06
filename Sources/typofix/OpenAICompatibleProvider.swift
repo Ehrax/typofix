@@ -45,17 +45,35 @@ struct OpenAICompatibleProvider: LLMProvider {
             maxTokens: Self.variantMaxTokens(for: text)
         )
 
-        let stripped = Self.stripMarkdownFences(from: content)
-        let data = Data(stripped.utf8)
-        let variants = try JSONDecoder().decode([String].self, from: data)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+        let variants = Self.parseVariants(from: content)
 
         guard variants.count == 5 else {
             throw ProviderError.invalidResponse
         }
 
         return variants
+    }
+
+    /// Decode the model's reply into 5 strings, tolerating a stray preamble or
+    /// missing/partial fences: try the fence-stripped content first, then fall
+    /// back to the `[ ... ]` array extracted from anywhere in the reply.
+    private static func parseVariants(from content: String) -> [String] {
+        let stripped = stripMarkdownFences(from: content)
+        for candidate in [stripped, extractJSONArray(from: stripped)].compactMap({ $0 }) {
+            if let decoded = try? JSONDecoder().decode([String].self, from: Data(candidate.utf8)) {
+                return decoded
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            }
+        }
+        return []
+    }
+
+    private static func extractJSONArray(from content: String) -> String? {
+        guard let start = content.firstIndex(of: "["),
+              let end = content.lastIndex(of: "]"),
+              start < end else { return nil }
+        return String(content[start...end])
     }
 
     private func complete(messages: [ChatMessage], temperature: Double?, maxTokens: Int) async throws -> String {

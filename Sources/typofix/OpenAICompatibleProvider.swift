@@ -5,17 +5,12 @@ struct OpenAICompatibleProvider: LLMProvider {
     private let apiKey: String
     private let model: String
     private let systemPrompt: String
-    /// The model's maximum output tokens. We always request this so a reply is
-    /// never truncated — `max_tokens` is only a ceiling, so the model still
-    /// stops at end-of-turn and we're billed for what it actually generates.
-    private let maxOutputTokens: Int
 
-    init(baseURL: URL, apiKey: String, model: String, systemPrompt: String, maxOutputTokens: Int) {
+    init(baseURL: URL, apiKey: String, model: String, systemPrompt: String) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.model = model
         self.systemPrompt = systemPrompt
-        self.maxOutputTokens = maxOutputTokens
     }
 
     func correct(_ text: String) async throws -> String {
@@ -24,8 +19,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 ChatMessage(role: "system", content: systemPrompt),
                 ChatMessage(role: "user", content: text)
             ],
-            temperature: 0.2,
-            maxTokens: maxOutputTokens
+            temperature: 0.2
         )
     }
 
@@ -35,8 +29,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 ChatMessage(role: "system", content: instruction),
                 ChatMessage(role: "user", content: text)
             ],
-            temperature: temperature,
-            maxTokens: maxOutputTokens
+            temperature: temperature
         )
     }
 
@@ -46,8 +39,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 ChatMessage(role: "system", content: instruction),
                 ChatMessage(role: "user", content: text)
             ],
-            temperature: nil,
-            maxTokens: maxOutputTokens
+            temperature: nil
         )
 
         let variants = Self.parseVariants(from: content)
@@ -81,7 +73,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         return String(content[start...end])
     }
 
-    private func complete(messages: [ChatMessage], temperature: Double?, maxTokens: Int) async throws -> String {
+    private func complete(messages: [ChatMessage], temperature: Double?) async throws -> String {
         var request = URLRequest(url: baseURL)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -89,8 +81,7 @@ struct OpenAICompatibleProvider: LLMProvider {
         request.httpBody = try JSONEncoder().encode(ChatRequest(
             model: model,
             messages: messages,
-            temperature: temperature,
-            maxTokens: maxTokens
+            temperature: temperature
         ))
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -135,14 +126,6 @@ private struct ChatRequest: Encodable {
     let model: String
     let messages: [ChatMessage]
     let temperature: Double?
-    let maxTokens: Int
-
-    enum CodingKeys: String, CodingKey {
-        case model
-        case messages
-        case temperature
-        case maxTokens = "max_tokens"
-    }
 }
 
 private struct ErrorResponse: Decodable {

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>typofix — Pricing Model Decision Doc</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --surface: #ffffff;
+    --text: #1a1a1e;
+    --muted: #6b6b76;
+    --border: #e3e3e8;
+    --accent: #4f6ef7;
+    --accent-soft: #eef1fe;
+    --good: #17803d;
+    --good-soft: #e8f6ee;
+    --warn: #a15c00;
+    --warn-soft: #fdf3e3;
+    --bad: #c0392b;
+    --bad-soft: #fdecea;
+    --code-bg: #f0f0f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131316;
+      --surface: #1c1c21;
+      --text: #ececf0;
+      --muted: #9a9aa6;
+      --border: #2e2e36;
+      --accent: #7c93ff;
+      --accent-soft: #232a45;
+      --good: #4fc97c;
+      --good-soft: #17301f;
+      --warn: #e5a53f;
+      --warn-soft: #35290f;
+      --bad: #e5695c;
+      --bad-soft: #381c1a;
+      --code-bg: #26262c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  header h1 { font-size: 1.9rem; margin: 0 0 .35rem; letter-spacing: -.02em; }
+  header p.sub { color: var(--muted); margin: 0 0 .5rem; max-width: 46rem; }
+  .meta { font-size: .8rem; color: var(--muted); }
+  h2 { font-size: 1.3rem; margin: 3rem 0 .75rem; letter-spacing: -.01em; }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: .4rem; }
+  p { max-width: 46rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .table-scroll { overflow-x: auto; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: .875rem;
+    min-width: 720px;
+  }
+  th, td {
+    text-align: left;
+    padding: .6rem .75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--surface) 60%, var(--bg));
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pill {
+    display: inline-block;
+    padding: .1rem .55rem;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill.low  { background: var(--good-soft); color: var(--good); }
+  .pill.med  { background: var(--warn-soft); color: var(--warn); }
+  .pill.high { background: var(--bad-soft);  color: var(--bad); }
+  .note { font-size: .8rem; color: var(--muted); margin-top: .6rem; max-width: 46rem; }
+  code {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: .08em .35em;
+    font-size: .85em;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 10px 10px 0;
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+    max-width: 46rem;
+  }
+  .callout.honest { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.rec { border-left-color: var(--good); background: var(--good-soft); }
+  .callout h3 { margin: 0 0 .4rem; font-size: 1rem; }
+  .callout ul { margin: .4rem 0 0; padding-left: 1.2rem; }
+  .callout li { margin: .25rem 0; }
+
+  /* Calculator */
+  .calc { padding: 1.25rem 1.25rem 1.5rem; }
+  .calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem 1.5rem; }
+  .field label { display: flex; justify-content: space-between; font-size: .82rem; font-weight: 600; margin-bottom: .3rem; }
+  .field label output { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 700; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select, input[type=number] {
+    width: 100%;
+    padding: .45rem .6rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: .875rem;
+  }
+  .outputs {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: .75rem;
+  }
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .75rem .9rem;
+  }
+  .stat .k { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .stat .v { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: .15rem; }
+  .stat .v.profit { color: var(--good); }
+  .stat .v.profit.neg { color: var(--bad); }
+  .stat .d { font-size: .72rem; color: var(--muted); margin-top: .1rem; }
+  footer { margin-top: 3.5rem; font-size: .78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>typofix — Pricing Model Decision</h1>
+  <p class="sub">Pricing and channel analysis for <strong>typofix</strong>, a macOS menu-bar utility: press a hotkey, the selected text anywhere on screen gets its typos fixed by an LLM through a capped server-side proxy.</p>
+  <p class="meta">Internal decision doc · July 2026 · Assumes Haiku-class model, AI cost ≈ $0.05–$0.30 per active user per month, hard-capped server-side.</p>
+</header>
+
+<!-- ============ 1. PRICING MODEL COMPARISON ============ -->
+<h2><span class="num">1</span>Pricing model comparison</h2>
+<p>Net figures below assume the cheapest sensible channel for each model. AI cost band: $0.05 (light user) to $0.30 (capped heavy user) per month.</p>
+<div class="card table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th class="num">Gross price</th>
+      <th class="num">Channel fee</th>
+      <th class="num">Net revenue</th>
+      <th class="num">Margin after AI cost</th>
+      <th>Churn risk</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>(a) Monthly sub</strong></td>
+      <td class="num">$0.99/mo</td>
+      <td class="num">MAS 15% → $0.15<br>Stripe → ~$0.33 (33%)</td>
+      <td class="num">$0.84/mo (MAS)<br>$0.66/mo (Stripe)</td>
+      <td class="num">$0.54–$0.79/mo (MAS)<br>64–94%</td>
+      <td><span class="pill med">Medium</span></td>
+      <td>Micro-billing is brutal on fixed fees — viable on MAS, marginal on Stripe. Impulse-buy price point.</td>
+    </tr>
+    <tr>
+      <td><strong>(b) Annual sub</strong></td>
+      <td class="num">$9.99/yr<br>(≈$0.83/mo)</td>
+      <td class="num">Stripe → ~$0.59 (5.9%)<br>MAS 15% → $1.50</td>
+      <td class="num">$9.40/yr (Stripe)<br>$8.49/yr (MAS)</td>
+      <td class="num">$0.48–$0.73/mo eq. (Stripe)<br>57–88%</td>
+      <td><span class="pill low">Low</span></td>
+      <td>Best cash flow and lowest fee drag. One renewal decision per year instead of twelve.</td>
+    </tr>
+    <tr>
+      <td><strong>(c) Free tier + upgrade</strong></td>
+      <td class="num">$0 (~20 fixes/day)<br>upgrade to (a)/(b)</td>
+      <td class="num">$0 on free users</td>
+      <td class="num">$0 on free users</td>
+      <td class="num">−$0.02 to −$0.10/mo per free user (capped)</td>
+      <td><span class="pill low">Low (n/a)</span></td>
+      <td>Free users cost real money (proxy pays for tokens). Keep cap tight; funnel to annual. Great top-of-funnel for a utility nobody's heard of.</td>
+    </tr>
+    <tr>
+      <td><strong>(d) BYO API key</strong></td>
+      <td class="num">$4.99 one-time</td>
+      <td class="num">MAS 15% → $0.75<br>Stripe → ~$0.44</td>
+      <td class="num">$4.24 (MAS)<br>$4.55 (Stripe)</td>
+      <td class="num">~100% (user pays AI directly)</td>
+      <td><span class="pill low">None</span></td>
+      <td>Zero AI cost to us, zero recurring revenue. Appeals to devs only; most users won't create an Anthropic/OpenAI key. Good as an escape hatch, bad as the main model.</td>
+    </tr>
+    <tr>
+      <td><strong>(e) Lifetime</strong></td>
+      <td class="num">$14.99 one-time</td>
+      <td class="num">MAS 15% → $2.25<br>Stripe → ~$0.73</td>
+      <td class="num">$12.74 (MAS)<br>$14.26 (Stripe)</td>
+      <td class="num">Breaks even after ~4–24 yrs of AI cost — unbounded liability</td>
+      <td><span class="pill high">High (liability)</span></td>
+      <td>One-time payment funding a forever-running metered cost is upside-down unless the cap is very tight. Only safe paired with BYO key or a hard lifetime token budget.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="note">Margin math for (a) on MAS: $0.99 − $0.15 fee = $0.84 net; minus $0.05–$0.30 AI = $0.54–$0.79 profit per user per month.</p>
+
+<!-- ============ 2. CHANNEL FEES ============ -->
+<h2><span class="num">2</span>Payment-channel fee comparison</h2>
+<div class="card table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>Channel</th>
+      <th class="num">Fee structure</th>
+      <th class="num">Fee on $0.99/mo</th>
+      <th class="num">Fee on $9.99/yr</th>
+      <th>Taxes / MoR</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Mac App Store</strong><br><span class="note">Small Business Program</span></td>
+      <td class="num">15%</td>
+      <td class="num">$0.15 <strong>(15%)</strong> ✅ cheapest monthly</td>
+      <td class="num">$1.50 (15%)</td>
+      <td>Apple is merchant of record — all sales tax/VAT handled</td>
+      <td>Built-in trust, discovery, one-tap subscription billing, StoreKit. <strong>Risk:</strong> sandbox may block the Accessibility-API text-grabbing that typofix depends on — must verify before committing.</td>
+    </tr>
+    <tr>
+      <td><strong>Stripe</strong></td>
+      <td class="num">~2.9% + $0.30</td>
+      <td class="num">$0.33 <strong>(~33%)</strong> ❌ fixed fee kills micro-billing</td>
+      <td class="num">$0.59 <strong>(5.9%)</strong> ✅ cheapest annual</td>
+      <td>You are merchant of record — need Stripe Tax + registrations, or eat the risk</td>
+      <td>Requires building your own account system, license keys, billing portal. Full control and best rate on larger transactions.</td>
+    </tr>
+    <tr>
+      <td><strong>Paddle / Lemon Squeezy</strong></td>
+      <td class="num">~5% + $0.50</td>
+      <td class="num">$0.55 (~56%)</td>
+      <td class="num">$1.00 (10%)</td>
+      <td>They are merchant of record — taxes handled globally</td>
+      <td>Middle ground: no App Store, no tax headache, but priciest per transaction. Fine for annual, absurd for $0.99 monthly.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<div class="callout">
+  <h3>Key takeaway</h3>
+  <p style="margin:0">Fixed per-transaction fees dominate at micro prices. At <strong>$0.99/mo</strong>, Stripe's $0.30 floor eats <strong>~33%</strong> while MAS takes 15% ($0.15) — MAS wins monthly. At <strong>$9.99/yr</strong>, Stripe drops to <strong>5.9%</strong> and beats both MAS (15%) and Paddle/LS (10%) — Stripe wins annual. Whatever the channel, <em>push annual</em>.</p>
+</div>
+
+<!-- ============ 3. CALCULATOR ============ -->
+<h2><span class="num">3</span>Interactive revenue calculator</h2>
+<div class="card calc">
+  <div class="calc-grid">
+    <div class="field">
+      <label for="subs">Paying subscribers <output id="subsOut">500</output></label>
+      <input type="range" id="subs" min="0" max="10000" step="10" value="500">
+    </div>
+    <div class="field">
+      <label for="annualPct">On annual plan <output id="annualPctOut">50%</output></label>
+      <input type="range" id="annualPct" min="0" max="100" step="1" value="50">
+    </div>
+    <div class="field">
+      <label for="channel">Payment channel</label>
+      <select id="channel">
+        <option value="mas" selected>Mac App Store (15%)</option>
+        <option value="stripe">Stripe (2.9% + $0.30)</option>
+        <option value="paddle">Paddle / Lemon Squeezy (5% + $0.50)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="churn">Monthly churn <output id="churnOut">5%</output></label>
+      <input type="range" id="churn" min="0" max="20" step="0.5" value="5">
+    </div>
+    <div class="field">
+      <label for="aiCost">AI cost / user / mo <output id="aiCostOut">$0.15</output></label>
+      <input type="range" id="aiCost" min="0.05" max="0.30" step="0.01" value="0.15">
+    </div>
+  </div>
+  <div class="outputs">
+    <div class="stat"><div class="k">MRR (gross)</div><div class="v" id="mrr">—</div><div class="d">monthly-equivalent revenue</div></div>
+    <div class="stat"><div class="k">ARR (gross)</div><div class="v" id="arr">—</div></div>
+    <div class="stat"><div class="k">Net after fees</div><div class="v" id="netFees">—</div><div class="d" id="feeDetail">—</div></div>
+    <div class="stat"><div class="k">AI cost / mo</div><div class="v" id="aiTotal">—</div></div>
+    <div class="stat"><div class="k">Monthly profit</div><div class="v profit" id="profit">—</div><div class="d" id="churnDetail">—</div></div>
+  </div>
+  <p class="note">Prices fixed at $0.99/mo and $9.99/yr. Annual revenue is amortized to monthly-equivalent. Churn shown as monthly subscriber loss you must replace to hold this level. Rough model — ignores refunds, failed payments, free-tier costs.</p>
+</div>
+
+<!-- ============ 4. EARNINGS SCENARIOS ============ -->
+<h2><span class="num">4</span>Earnings scenarios (monthly net)</h2>
+<p>Net = gross − channel fees − AI cost at $0.15/user/mo midpoint. "Monthly-heavy" = 80% on $0.99/mo via MAS; "Annual-heavy" = 80% on $9.99/yr via Stripe.</p>
+<div class="card table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>Scenario</th>
+      <th class="num">Subscribers</th>
+      <th class="num">Gross MRR-eq</th>
+      <th class="num">Net/mo (monthly-heavy, MAS)</th>
+      <th class="num">Net/mo (annual-heavy, Stripe)</th>
+      <th>Reality check</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Pessimistic</strong></td>
+      <td class="num">100</td>
+      <td class="num">~$96</td>
+      <td class="num">~$67</td>
+      <td class="num">~$72</td>
+      <td>Coffee money. Roughly $70/mo net — a hobby, not income.</td>
+    </tr>
+    <tr>
+      <td><strong>Realistic</strong></td>
+      <td class="num">500–1,000</td>
+      <td class="num">~$480–$960</td>
+      <td class="num">~$335–$670</td>
+      <td class="num">~$360–$720</td>
+      <td>Nice side project. Covers server + AI + a bit left over.</td>
+    </tr>
+    <tr>
+      <td><strong>Optimistic</strong></td>
+      <td class="num">5,000</td>
+      <td class="num">~$4,800</td>
+      <td class="num">~$3,350</td>
+      <td class="num">~$3,600</td>
+      <td>Meaningful part-time income. Requires real distribution (MAS featuring, viral moment, or press).</td>
+    </tr>
+    <tr>
+      <td><strong>Stretch</strong></td>
+      <td class="num">20,000</td>
+      <td class="num">~$19,200</td>
+      <td class="num">~$13,400</td>
+      <td class="num">~$14,400</td>
+      <td>Full-time viable. Very few menu-bar utilities get here; plan as upside, not baseline.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<div class="callout honest">
+  <h3>Honest framing</h3>
+  <p style="margin:0">At $0.99–$9.99 price points, typofix is <strong>side-project scale until several thousand paying subscribers</strong>. 100 subs nets ~$70/mo. The economics only work because AI cost is hard-capped and marginal cost per user stays under ~$0.30/mo — protect that cap.</p>
+</div>
+
+<!-- ============ 5. RECOMMENDATION ============ -->
+<h2><span class="num">5</span>Recommendation</h2>
+<div class="callout rec">
+  <h3>Recommended path</h3>
+  <ul>
+    <li><strong>First, verify sandboxing:</strong> confirm the Accessibility-based select-and-fix flow survives App Store sandbox rules. This is the gating question.</li>
+    <li><strong>If MAS works:</strong> launch on the <strong>Mac App Store</strong> (Small Business Program, 15%) — cheapest micro-billing, zero tax work, built-in trust and discovery for an unknown utility.</li>
+    <li><strong>If sandbox blocks it:</strong> distribute direct with <strong>Stripe, annual-first</strong> ($9.99/yr front and center; hide or drop the $0.99 monthly, where Stripe's $0.30 fixed fee costs ~33%). Use Stripe Tax; budget time for accounts/licensing, or use Paddle/LS if you'd rather trade ~4 points of fee for zero tax/account work.</li>
+    <li><strong>Push annual everywhere</strong> — lowest fee drag, lowest churn, best cash flow.</li>
+    <li><strong>Keep the free tier tight</strong> (~20 fixes/day, hard server cap) — it is the funnel, not the product.</li>
+    <li><strong>Offer BYO-key ($4.99)</strong> as a power-user escape hatch; <strong>avoid lifetime</strong> unless it carries a hard lifetime token budget.</li>
+  </ul>
+</div>
+
+<footer>All figures are estimates for planning purposes. Fees, AI pricing, and store terms change — re-verify before launch.</footer>
+</div>
+
+<script>
+(function () {
+  var MONTHLY = 0.99, ANNUAL = 9.99;
+  var fmt = function (n) {
+    return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n >= 1000 ? 0 : 2 });
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var ids = ["subs", "annualPct", "channel", "churn", "aiCost"];
+
+  function fees(channel, price, count) {
+    if (channel === "mas")    return price * 0.15 * count;
+    if (channel === "stripe") return (price * 0.029 + 0.30) * count;
+    return (price * 0.05 + 0.50) * count; // paddle / lemon squeezy
+  }
+
+  function update() {
+    var subs = +$("subs").value;
+    var annualPct = +$("annualPct").value;
+    var channel = $("channel").value;
+    var churn = +$("churn").value;
+    var aiCost = +$("aiCost").value;
+
+    $("subsOut").textContent = subs.toLocaleString("en-US");
+    $("annualPctOut").textContent = annualPct + "%";
+    $("churnOut").textContent = churn + "%";
+    $("aiCostOut").textContent = fmt(aiCost);
+
+    var annualSubs = Math.round(subs * annualPct / 100);
+    var monthlySubs = subs - annualSubs;
+
+    var mrr = monthlySubs * MONTHLY + annualSubs * ANNUAL / 12;
+    var arr = mrr * 12;
+
+    // Fees: monthly subs pay 12 tx/yr, annual subs 1 tx/yr — amortize to monthly
+    var monthlyFees = fees(channel, MONTHLY, monthlySubs) + fees(channel, ANNUAL, annualSubs) / 12;
+    var netAfterFees = mrr - monthlyFees;
+    var aiTotal = subs * aiCost;
+    var profit = netAfterFees - aiTotal;
+    var churnedUsers = Math.round(subs * churn / 100);
+
+    $("mrr").textContent = fmt(mrr);
+    $("arr").textContent = fmt(arr);
+    $("netFees").textContent = fmt(netAfterFees);
+    $("feeDetail").textContent = "fees: " + fmt(monthlyFees) + "/mo (" + (mrr > 0 ? (monthlyFees / mrr * 100).toFixed(1) : "0.0") + "%)";
+    $("aiTotal").textContent = fmt(aiTotal);
+    var p = $("profit");
+    p.textContent = fmt(profit);
+    p.classList.toggle("neg", profit < 0);
+    $("churnDetail").textContent = "~" + churnedUsers.toLocaleString("en-US") + " subs/mo lost to churn at this level";
+  }
+
+  ids.forEach(function (id) { $(id).addEventListener("input", update); });
+  update();
+})();
+</script>
+</body>
+</html>

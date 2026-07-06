@@ -10,7 +10,7 @@ struct TypofixConfig: Codable, Sendable {
     var anthropicApiKey: String?
 
     static let defaultProvider = "groq"
-    static let defaultModel = "llama-3.1-8b-instant"
+    static let defaultModel = "llama-3.3-70b-versatile"
     static let defaultAPIKeyEnvVar = "GROQ_API_KEY"
     static let defaultSmartProvider = "anthropic"
     static let defaultSmartModel = "claude-sonnet-5"

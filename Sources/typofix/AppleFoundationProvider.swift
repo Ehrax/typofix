@@ -1,6 +1,17 @@
 import Foundation
 import FoundationModels
 
+/// Constrains quick-fix correction to a schema instead of freeform text. Benchmarked
+/// against the shipped compact prompt in ModelBenchmarkTests.testAppleFoundationChatDriftBenchmark:
+/// this removes the "answers the input as a chatbot instead of correcting it" failure
+/// on adversarial/self-referential input, at no accuracy or latency cost on the
+/// existing quick-fix corpus.
+@Generable
+private struct AppleCorrectionResult {
+    @Guide(description: "The input text, unchanged except for corrected spelling, typos, and obvious grammar mistakes. Never a reply, answer, greeting, or comment - only the corrected copy of the input.")
+    let correctedText: String
+}
+
 struct AppleFoundationProvider: LLMProvider {
     private let systemPrompt: String
     private let correctionTemperature: Double?
@@ -11,7 +22,7 @@ struct AppleFoundationProvider: LLMProvider {
     }
 
     func correct(_ text: String) async throws -> String {
-        try await complete(text, instructions: systemPrompt, temperature: correctionTemperature)
+        try await completeCorrection(text, instructions: systemPrompt, temperature: correctionTemperature)
     }
 
     func rewrite(_ text: String, instruction: String, temperature: Double?) async throws -> String {
@@ -66,6 +77,32 @@ struct AppleFoundationProvider: LLMProvider {
         }
 
         let content = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else {
+            throw ProviderError.emptyResponse
+        }
+
+        return content
+    }
+
+    private func completeCorrection(_ prompt: String, instructions: String, temperature: Double?) async throws -> String {
+        guard Self.isAvailable else {
+            throw ProviderError.foundationModelUnavailable(Self.availabilityDescription)
+        }
+
+        let session = LanguageModelSession(instructions: instructions)
+        let response: LanguageModelSession.Response<AppleCorrectionResult>
+
+        if let temperature {
+            response = try await session.respond(
+                to: prompt,
+                generating: AppleCorrectionResult.self,
+                options: GenerationOptions(temperature: temperature)
+            )
+        } else {
+            response = try await session.respond(to: prompt, generating: AppleCorrectionResult.self)
+        }
+
+        let content = response.content.correctedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else {
             throw ProviderError.emptyResponse
         }

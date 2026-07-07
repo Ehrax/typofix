@@ -38,9 +38,6 @@ final class SettingsViewModel {
     private(set) var launchAtLoginAvailable = LaunchAtLogin.isAvailable
     private(set) var launchAtLoginErrorMessage: String?
 
-    var isGroqKeyVisible = false
-    var isAnthropicKeyVisible = false
-
     let appleFoundationStatus = AppleFoundationProvider.availabilityDescription
 
     init(configStore: ConfigStore) {

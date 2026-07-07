@@ -29,6 +29,17 @@ final class FoundationModelAcceptanceTests: XCTestCase {
         XCTAssertTrue(output.localizedCaseInsensitiveContains("hello"), "expected typo fix; got: \(output)")
     }
 
+    func testAppleFoundationDoesNotAnswerSelfReferentialInput() async throws {
+        let provider = try ProviderFactory.makeFastProvider(config: appleConfig())
+
+        let input = "hm teste gerade apple foundatio n bin mal gespannt wie das meine typos korrigiert- aber glaub das model kann nichts"
+        let output = try await provider.correct(input)
+
+        XCTAssertTrue(output.localizedCaseInsensitiveContains("gespannt"), "expected the original wording to survive; got: \(output)")
+        XCTAssertFalse(output.localizedCaseInsensitiveContains("ich bin hier"), "provider answered as a chat assistant instead of correcting the text; got: \(output)")
+        XCTAssertFalse(output.localizedCaseInsensitiveContains("lass uns"), "provider answered as a chat assistant instead of correcting the text; got: \(output)")
+    }
+
     @MainActor
     func testAppleFoundationSmartVariants() async throws {
         try XCTSkipUnless(

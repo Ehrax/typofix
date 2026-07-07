@@ -1,32 +1,76 @@
 import SwiftUI
 
+struct SettingsSceneView: View {
+    @State private var viewModel: SettingsViewModel
+
+    private let onLaunchAtLoginDidChange: () -> Void
+    private let onShortcutsDidChange: () -> Void
+
+    init(
+        configStore: ConfigStore,
+        onLaunchAtLoginDidChange: @escaping () -> Void,
+        onShortcutsDidChange: @escaping () -> Void
+    ) {
+        _viewModel = State(initialValue: SettingsViewModel(configStore: configStore))
+        self.onLaunchAtLoginDidChange = onLaunchAtLoginDidChange
+        self.onShortcutsDidChange = onShortcutsDidChange
+    }
+
+    var body: some View {
+        SettingsRootView(viewModel: viewModel)
+            .frame(minWidth: 620, idealWidth: 680, minHeight: 420, idealHeight: 480)
+            .windowResizeAnchor(.top)
+            .onAppear {
+                viewModel.launchAtLoginDidChange = onLaunchAtLoginDidChange
+                viewModel.shortcutsDidChange = onShortcutsDidChange
+                viewModel.load()
+            }
+    }
+}
+
 struct SettingsRootView: View {
     @Bindable var viewModel: SettingsViewModel
-    @State private var selection: SettingsSection? = .general
+    @SceneStorage("typofix.settings.selection") private var selectionID = SettingsSection.general.rawValue
+
+    private var selection: Binding<SettingsSection?> {
+        Binding {
+            SettingsSection(rawValue: selectionID) ?? .general
+        } set: { newValue in
+            selectionID = (newValue ?? .general).rawValue
+        }
+    }
+
+    private var selectedSection: SettingsSection {
+        SettingsSection(rawValue: selectionID) ?? .general
+    }
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $selection) {
+            List(selection: selection) {
                 ForEach(SettingsSection.allCases) { section in
                     Label(section.title, systemImage: section.systemImage)
                         .tag(section)
                 }
             }
-            .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 190, max: 230)
+            .navigationSplitViewColumnWidth(190)
+            .toolbar(removing: .sidebarToggle)
         } detail: {
-            switch selection ?? .general {
-            case .general:
-                GeneralSettingsView(viewModel: viewModel)
-            case .shortcuts:
-                ShortcutsSettingsView(viewModel: viewModel)
-            case .providers:
-                ProvidersSettingsView(viewModel: viewModel)
-            }
+            selectedDetail
+                .navigationTitle(selectedSection.title)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(minWidth: 620, idealWidth: 680, minHeight: 420, idealHeight: 460)
-        .toolbar(removing: .sidebarToggle)
-        .toolbar(.hidden, for: .windowToolbar)
+    }
+
+    @ViewBuilder
+    private var selectedDetail: some View {
+        switch selectedSection {
+        case .general:
+            GeneralSettingsView(viewModel: viewModel)
+        case .shortcuts:
+            ShortcutsSettingsView(viewModel: viewModel)
+        case .providers:
+            ProvidersSettingsView(viewModel: viewModel)
+        }
     }
 }
 
@@ -41,6 +85,7 @@ private struct GeneralSettingsView: View {
                         Text(option.menuTitle).tag(option.selectionKey)
                     }
                 }
+
                 Picker("Smart model", selection: $viewModel.smartModelSelectionKey) {
                     ForEach(viewModel.modelOptions(for: .smart), id: \.selectionKey) { option in
                         Text(option.menuTitle).tag(option.selectionKey)
@@ -58,19 +103,23 @@ private struct GeneralSettingsView: View {
                     set: { viewModel.setLaunchAtLoginEnabled($0) }
                 ))
                 .disabled(!viewModel.launchAtLoginAvailable)
-                .help(viewModel.launchAtLoginAvailable ? "Open Typofix automatically when you sign in." : LaunchAtLogin.unavailableTooltip)
-
-                if let errorMessage = viewModel.launchAtLoginErrorMessage {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                }
             } header: {
                 Text("System")
+            } footer: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(viewModel.launchAtLoginAvailable
+                        ? "Open Typofix automatically when you sign in."
+                        : LaunchAtLogin.unavailableTooltip)
+
+                    if let errorMessage = viewModel.launchAtLoginErrorMessage {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                    }
+                }
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(SettingsSection.general.title)
+        .scenePadding()
     }
 }
 
@@ -88,6 +137,7 @@ private struct ShortcutsSettingsView: View {
                         Text(shortcut.displayName).tag(shortcut)
                     }
                 }
+
                 Picker("Rewrite bar", selection: Binding(
                     get: { viewModel.rewriteShortcut },
                     set: { viewModel.updateRewriteShortcut($0) }
@@ -103,30 +153,31 @@ private struct ShortcutsSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(SettingsSection.shortcuts.title)
+        .scenePadding()
     }
 }
 
 private struct ProvidersSettingsView: View {
     @Bindable var viewModel: SettingsViewModel
+    @State private var isGroqKeyVisible = false
+    @State private var isAnthropicKeyVisible = false
 
     var body: some View {
         Form {
             Section {
-                LabeledContent("Groq") {
-                    APIKeyField(
-                        text: $viewModel.groqAPIKey,
-                        isVisible: $viewModel.isGroqKeyVisible,
-                        placeholder: "GROQ_API_KEY or config.json"
-                    )
-                }
-                LabeledContent("Anthropic") {
-                    APIKeyField(
-                        text: $viewModel.anthropicAPIKey,
-                        isVisible: $viewModel.isAnthropicKeyVisible,
-                        placeholder: "ANTHROPIC_API_KEY or config.json"
-                    )
-                }
+                APIKeyField(
+                    "Groq",
+                    text: $viewModel.groqAPIKey,
+                    isVisible: $isGroqKeyVisible,
+                    prompt: "GROQ_API_KEY or config.json"
+                )
+
+                APIKeyField(
+                    "Anthropic",
+                    text: $viewModel.anthropicAPIKey,
+                    isVisible: $isAnthropicKeyVisible,
+                    prompt: "ANTHROPIC_API_KEY or config.json"
+                )
             } header: {
                 Text("Cloud Providers")
             } footer: {
@@ -145,34 +196,45 @@ private struct ProvidersSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(SettingsSection.providers.title)
+        .scenePadding()
     }
 }
 
 private struct APIKeyField: View {
-    @Binding var text: String
-    @Binding var isVisible: Bool
-    let placeholder: String
+    @Binding private var text: String
+    @Binding private var isVisible: Bool
+
+    private let title: String
+    private let prompt: String
+
+    init(_ title: String, text: Binding<String>, isVisible: Binding<Bool>, prompt: String) {
+        self.title = title
+        _text = text
+        _isVisible = isVisible
+        self.prompt = prompt
+    }
 
     var body: some View {
-        HStack(spacing: 6) {
-            Group {
-                if isVisible {
-                    TextField(placeholder, text: $text)
-                } else {
-                    SecureField(placeholder, text: $text)
+        LabeledContent(title) {
+            HStack {
+                Group {
+                    if isVisible {
+                        TextField(title, text: $text, prompt: Text(prompt))
+                    } else {
+                        SecureField(title, text: $text, prompt: Text(prompt))
+                    }
                 }
-            }
-            .textFieldStyle(.roundedBorder)
-            .frame(width: 220)
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
 
-            Button {
-                isVisible.toggle()
-            } label: {
-                Image(systemName: isVisible ? "eye.slash" : "eye")
+                Button {
+                    isVisible.toggle()
+                } label: {
+                    Image(systemName: isVisible ? "eye.slash" : "eye")
+                }
+                .buttonStyle(.borderless)
+                .help(isVisible ? "Hide key" : "Show key")
             }
-            .buttonStyle(.borderless)
-            .help(isVisible ? "Hide key" : "Show key")
         }
     }
 }

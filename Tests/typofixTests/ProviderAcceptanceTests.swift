@@ -9,13 +9,17 @@ import XCTest
 final class ProviderAcceptanceTests: XCTestCase {
 
     private func loadConfigOrSkip() throws -> TypofixConfig {
-        let config = try ConfigStore().loadOrCreate()
+        var config = try ConfigStore().loadOrCreate()
         try XCTSkipIf((config.apiKey ?? "").isEmpty, "no Groq API key configured")
         try XCTSkipIf((config.anthropicApiKey ?? "").isEmpty, "no Anthropic API key configured")
+        config.provider = TypofixConfig.defaultProvider
+        config.model = TypofixConfig.defaultModel
+        config.smartProvider = TypofixConfig.defaultSmartProvider
+        config.smartModel = TypofixConfig.defaultSmartModel
         return config
     }
 
-    // ⌘⌘ path: fast typo correction must return non-empty, changed text.
+    // Fast typo correction must return non-empty, changed text.
     func testFastCorrectionFixesTypos() async throws {
         let config = try loadConfigOrSkip()
         let provider = try ProviderFactory.makeFastProvider(config: config)

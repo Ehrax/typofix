@@ -7,6 +7,8 @@ BUNDLE_ID="dev.ehrax.typofix"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 APP_DIR="$DIST_DIR/$APP_NAME.app"
+INSTALL_DIR="${INSTALL_DIR:-/Applications}"
+INSTALLED_APP="$INSTALL_DIR/$APP_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
@@ -79,4 +81,23 @@ ditto -c -k --keepParent "$APP_DIR" "$DIST_DIR/$APP_NAME-$VERSION.zip"
 echo "Built $APP_DIR"
 echo "Created $DIST_DIR/$APP_NAME-$VERSION.zip"
 
-open "$DIST_DIR"
+echo "Quitting any running $APP_NAME process"
+pkill -TERM -x "$APP_NAME" >/dev/null 2>&1 || true
+pkill -TERM -x "$BINARY_NAME" >/dev/null 2>&1 || true
+
+for _ in {1..20}; do
+    if ! pgrep -qx "$APP_NAME" && ! pgrep -qx "$BINARY_NAME"; then
+        break
+    fi
+    sleep 0.25
+done
+
+pkill -KILL -x "$APP_NAME" >/dev/null 2>&1 || true
+pkill -KILL -x "$BINARY_NAME" >/dev/null 2>&1 || true
+
+echo "Installing $APP_NAME.app to $INSTALL_DIR"
+rm -rf "$INSTALLED_APP"
+ditto "$APP_DIR" "$INSTALLED_APP"
+
+echo "Opening $INSTALLED_APP"
+open "$INSTALLED_APP"

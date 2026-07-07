@@ -13,6 +13,7 @@ enum ProviderError: LocalizedError {
     case unparseableVariants(reply: String)
     case httpError(statusCode: Int, message: String?)
     case emptyResponse
+    case foundationModelUnavailable(String)
 
     var errorDescription: String? {
         switch self {
@@ -32,6 +33,8 @@ enum ProviderError: LocalizedError {
             }
         case .emptyResponse:
             "The provider returned no corrected text."
+        case .foundationModelUnavailable(let reason):
+            "Apple Foundation model unavailable. \(reason)"
         }
     }
 }

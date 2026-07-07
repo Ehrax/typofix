@@ -8,8 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var correctionController: CorrectionController?
     private var rewriteBarController: RewriteBarController?
     private var settingsWindowController: SettingsWindowController?
-    private var commandHotkeyMonitor: HotkeyMonitor?
-    private var optionHotkeyMonitor: HotkeyMonitor?
+    private var fastHotkeyMonitor: HotkeyMonitor?
+    private var rewriteHotkeyMonitor: HotkeyMonitor?
     private var accessibilityItem: NSMenuItem?
     private var launchAtLoginItem: NSMenuItem?
     private var launchAtLoginErrorItem: NSMenuItem?
@@ -23,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateAccessibilityMenuItem()
 
         do {
-            _ = try configStore.loadOrCreate()
+            let config = try configStore.loadOrCreate()
             guard let feedback else { return }
             correctionController = CorrectionController(
                 configStore: configStore,
@@ -34,14 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 configStore: configStore,
                 operationGate: operationGate
             )
-            commandHotkeyMonitor = HotkeyMonitor(modifier: .command) { [weak self] in
-                self?.correctionController?.trigger()
-            }
-            optionHotkeyMonitor = HotkeyMonitor(modifier: .option) { [weak self] in
-                self?.rewriteBarController?.trigger()
-            }
-            commandHotkeyMonitor?.start()
-            optionHotkeyMonitor?.start()
+            startHotkeyMonitors(config: config)
         } catch {
             feedback?.showWarning()
         }
@@ -64,6 +57,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let controller = settingsWindowController ?? SettingsWindowController(configStore: configStore)
         controller.launchAtLoginDidChange = { [weak self] in
             self?.updateLaunchAtLoginMenuItem()
+        }
+        controller.shortcutsDidChange = { [weak self] in
+            self?.reloadHotkeyMonitors()
         }
         settingsWindowController = controller
         controller.show()
@@ -163,5 +159,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         launchAtLoginErrorItem?.title = errorMessage ?? ""
         launchAtLoginErrorItem?.isHidden = errorMessage == nil
+    }
+
+    private func reloadHotkeyMonitors() {
+        do {
+            startHotkeyMonitors(config: try configStore.loadOrCreate())
+        } catch {
+            feedback?.showWarning()
+        }
+    }
+
+    private func startHotkeyMonitors(config: TypofixConfig) {
+        fastHotkeyMonitor?.stop()
+        rewriteHotkeyMonitor?.stop()
+        fastHotkeyMonitor = nil
+        rewriteHotkeyMonitor = nil
+
+        if let modifier = config.fastShortcut.modifier {
+            let monitor = HotkeyMonitor(modifier: modifier) { [weak self] in
+                self?.correctionController?.trigger()
+            }
+            monitor.start()
+            fastHotkeyMonitor = monitor
+        }
+
+        guard config.rewriteShortcut != config.fastShortcut else {
+            return
+        }
+
+        if let modifier = config.rewriteShortcut.modifier {
+            let monitor = HotkeyMonitor(modifier: modifier) { [weak self] in
+                self?.rewriteBarController?.trigger()
+            }
+            monitor.start()
+            rewriteHotkeyMonitor = monitor
+        }
     }
 }

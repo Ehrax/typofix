@@ -4,20 +4,13 @@ struct ProviderFactory: Sendable {
     static func makeFastProvider(config: TypofixConfig) throws -> any LLMProvider {
         switch config.provider.lowercased() {
         case "groq":
-            let keyName = config.apiKeyEnvVar ?? TypofixConfig.defaultAPIKeyEnvVar
-            let apiKey = config.apiKey?.nilIfBlank
-                ?? ProcessInfo.processInfo.environment[keyName]?.nilIfBlank
-                ?? ProcessInfo.processInfo.environment[TypofixConfig.defaultAPIKeyEnvVar]?.nilIfBlank
-
-            guard let apiKey else {
-                throw ProviderError.missingAPIKey(keyName)
-            }
-
-            return OpenAICompatibleProvider(
-                baseURL: URL(string: "https://api.groq.com/openai/v1/chat/completions")!,
-                apiKey: apiKey,
-                model: config.model,
-                systemPrompt: Self.fastSystemPrompt
+            return try makeGroqProvider(model: config.model, config: config, roleProviderID: config.provider)
+        case "anthropic":
+            return try makeAnthropicProvider(model: config.model, config: config, roleProviderID: config.provider)
+        case "apple", "apple-foundation", "foundation":
+            return AppleFoundationProvider(
+                systemPrompt: PromptCatalog.fastCorrectionPrompt(providerID: config.provider, modelID: config.model),
+                correctionTemperature: PromptCatalog.correctionTemperature(providerID: config.provider, modelID: config.model)
             )
         default:
             throw ProviderError.unsupportedProvider(config.provider)
@@ -27,46 +20,54 @@ struct ProviderFactory: Sendable {
     static func makeSmartProvider(config: TypofixConfig) throws -> any LLMProvider {
         switch config.smartProvider.lowercased() {
         case "anthropic":
-            let apiKey = config.anthropicApiKey?.nilIfBlank
-                ?? ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]?.nilIfBlank
-
-            guard let apiKey else {
-                throw ProviderError.missingAPIKey("ANTHROPIC_API_KEY")
-            }
-
-            return OpenAICompatibleProvider(
-                baseURL: URL(string: "https://api.anthropic.com/v1/chat/completions")!,
-                apiKey: apiKey,
-                model: config.smartModel,
-                systemPrompt: Self.fastSystemPrompt
-            )
+            return try makeAnthropicProvider(model: config.smartModel, config: config, roleProviderID: config.smartProvider)
         case "groq":
-            let fastConfig = TypofixConfig(
-                provider: "groq",
-                model: config.smartModel,
-                apiKeyEnvVar: config.apiKeyEnvVar,
-                apiKey: config.apiKey,
-                smartProvider: config.smartProvider,
-                smartModel: config.smartModel,
-                anthropicApiKey: config.anthropicApiKey
+            return try makeGroqProvider(model: config.smartModel, config: config, roleProviderID: config.smartProvider)
+        case "apple", "apple-foundation", "foundation":
+            return AppleFoundationProvider(
+                systemPrompt: PromptCatalog.fastCorrectionPrompt(providerID: config.smartProvider, modelID: config.smartModel),
+                correctionTemperature: PromptCatalog.correctionTemperature(providerID: config.smartProvider, modelID: config.smartModel)
             )
-            return try makeFastProvider(config: fastConfig)
         default:
             throw ProviderError.unsupportedProvider(config.smartProvider)
         }
     }
 
-    private static let fastSystemPrompt = """
-    You are a strict typo-correction pass, not an editor. Fix ONLY spelling, typos, capitalization, and unambiguous grammar errors (wrong article/case, wrong verb form, missing obligatory comma). The text may be German, English, or a mix of both.
+    private static func makeGroqProvider(model: String, config: TypofixConfig, roleProviderID: String) throws -> OpenAICompatibleProvider {
+        let keyName = config.apiKeyEnvVar ?? TypofixConfig.defaultAPIKeyEnvVar
+        let apiKey = config.apiKey?.nilIfBlank
+            ?? ProcessInfo.processInfo.environment[keyName]?.nilIfBlank
+            ?? ProcessInfo.processInfo.environment[TypofixConfig.defaultAPIKeyEnvVar]?.nilIfBlank
 
-    Do NOT:
-    - rewrite, reorder, or restructure sentences
-    - change word choice or translate words between languages (keep English words in German text exactly as written, e.g. "Habit", "slowly", "tbh", "let's see")
-    - change punctuation style, sentence rhythm, dashes, smileys, or informal/diary flow
-    - "improve" style, tone, or clarity in any way
+        guard let apiKey else {
+            throw ProviderError.missingAPIKey(keyName)
+        }
 
-    If a passage is messy but understandable, leave it as is. When unsure whether something is an error or a stylistic choice, leave it unchanged. Preserve all formatting and line breaks. Return ONLY the corrected text, with no quotes and no commentary.
-    """
+        return OpenAICompatibleProvider(
+            baseURL: URL(string: "https://api.groq.com/openai/v1/chat/completions")!,
+            apiKey: apiKey,
+            model: model,
+            systemPrompt: PromptCatalog.fastCorrectionPrompt(providerID: roleProviderID, modelID: model),
+            correctionTemperature: PromptCatalog.correctionTemperature(providerID: roleProviderID, modelID: model)
+        )
+    }
+
+    private static func makeAnthropicProvider(model: String, config: TypofixConfig, roleProviderID: String) throws -> OpenAICompatibleProvider {
+        let apiKey = config.anthropicApiKey?.nilIfBlank
+            ?? ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"]?.nilIfBlank
+
+        guard let apiKey else {
+            throw ProviderError.missingAPIKey("ANTHROPIC_API_KEY")
+        }
+
+        return OpenAICompatibleProvider(
+            baseURL: URL(string: "https://api.anthropic.com/v1/chat/completions")!,
+            apiKey: apiKey,
+            model: model,
+            systemPrompt: PromptCatalog.fastCorrectionPrompt(providerID: roleProviderID, modelID: model),
+            correctionTemperature: PromptCatalog.correctionTemperature(providerID: roleProviderID, modelID: model)
+        )
+    }
 }
 
 private extension String {

@@ -16,6 +16,8 @@ final class HotkeyMonitor {
     }
 
     func start() {
+        stop()
+
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             Task { @MainActor in
                 self?.handleFlagsChanged(event)
@@ -26,6 +28,28 @@ final class HotkeyMonitor {
             Task { @MainActor in
                 self?.handleKeyDown()
             }
+        }
+    }
+
+    func stop() {
+        if let flagsMonitor {
+            NSEvent.removeMonitor(flagsMonitor)
+            self.flagsMonitor = nil
+        }
+
+        if let keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+            self.keyMonitor = nil
+        }
+
+        modifierDownStartedAt = nil
+        lastIsolatedModifierTapAt = nil
+        invalidatedCurrentPress = false
+    }
+
+    deinit {
+        MainActor.assumeIsolated {
+            stop()
         }
     }
 

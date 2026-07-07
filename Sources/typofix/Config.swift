@@ -8,9 +8,11 @@ struct TypofixConfig: Codable, Sendable {
     var smartProvider: String
     var smartModel: String
     var anthropicApiKey: String?
+    var fastShortcut: HotkeyShortcut
+    var rewriteShortcut: HotkeyShortcut
 
     static let defaultProvider = "groq"
-    static let defaultModel = "llama-3.3-70b-versatile"
+    static let defaultModel = "openai/gpt-oss-20b"
     static let defaultAPIKeyEnvVar = "GROQ_API_KEY"
     static let defaultSmartProvider = "anthropic"
     static let defaultSmartModel = "claude-sonnet-5"
@@ -23,7 +25,9 @@ struct TypofixConfig: Codable, Sendable {
             apiKey: nil,
             smartProvider: defaultSmartProvider,
             smartModel: defaultSmartModel,
-            anthropicApiKey: nil
+            anthropicApiKey: nil,
+            fastShortcut: HotkeyShortcut.defaultFast,
+            rewriteShortcut: HotkeyShortcut.defaultRewrite
         )
     }
 
@@ -34,7 +38,9 @@ struct TypofixConfig: Codable, Sendable {
         apiKey: String?,
         smartProvider: String,
         smartModel: String,
-        anthropicApiKey: String?
+        anthropicApiKey: String?,
+        fastShortcut: HotkeyShortcut = HotkeyShortcut.defaultFast,
+        rewriteShortcut: HotkeyShortcut = HotkeyShortcut.defaultRewrite
     ) {
         self.provider = provider
         self.model = model
@@ -43,6 +49,8 @@ struct TypofixConfig: Codable, Sendable {
         self.smartProvider = smartProvider
         self.smartModel = smartModel
         self.anthropicApiKey = anthropicApiKey
+        self.fastShortcut = fastShortcut
+        self.rewriteShortcut = rewriteShortcut
     }
 
     init(from decoder: Decoder) throws {
@@ -54,6 +62,8 @@ struct TypofixConfig: Codable, Sendable {
         self.smartProvider = try container.decodeIfPresent(String.self, forKey: .smartProvider) ?? Self.defaultSmartProvider
         self.smartModel = try container.decodeIfPresent(String.self, forKey: .smartModel) ?? Self.defaultSmartModel
         self.anthropicApiKey = try container.decodeIfPresent(String.self, forKey: .anthropicApiKey)
+        self.fastShortcut = try container.decodeIfPresent(HotkeyShortcut.self, forKey: .fastShortcut) ?? HotkeyShortcut.defaultFast
+        self.rewriteShortcut = try container.decodeIfPresent(HotkeyShortcut.self, forKey: .rewriteShortcut) ?? HotkeyShortcut.defaultRewrite
     }
 }
 

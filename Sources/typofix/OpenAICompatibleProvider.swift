@@ -5,12 +5,14 @@ struct OpenAICompatibleProvider: LLMProvider {
     private let apiKey: String
     private let model: String
     private let systemPrompt: String
+    private let correctionTemperature: Double?
 
-    init(baseURL: URL, apiKey: String, model: String, systemPrompt: String) {
+    init(baseURL: URL, apiKey: String, model: String, systemPrompt: String, correctionTemperature: Double? = 0.2) {
         self.baseURL = baseURL
         self.apiKey = apiKey
         self.model = model
         self.systemPrompt = systemPrompt
+        self.correctionTemperature = correctionTemperature
     }
 
     func correct(_ text: String) async throws -> String {
@@ -19,7 +21,7 @@ struct OpenAICompatibleProvider: LLMProvider {
                 ChatMessage(role: "system", content: systemPrompt),
                 ChatMessage(role: "user", content: text)
             ],
-            temperature: 0.2
+            temperature: correctionTemperature
         )
     }
 
@@ -42,35 +44,13 @@ struct OpenAICompatibleProvider: LLMProvider {
             temperature: nil
         )
 
-        let variants = Self.parseVariants(from: content)
+        let variants = RewriteVariantParser.parseVariants(from: content)
 
         guard variants.count == 5 else {
             throw ProviderError.unparseableVariants(reply: content)
         }
 
         return variants
-    }
-
-    /// Decode the model's reply into 5 strings, tolerating a stray preamble or
-    /// missing/partial fences: try the fence-stripped content first, then fall
-    /// back to the `[ ... ]` array extracted from anywhere in the reply.
-    private static func parseVariants(from content: String) -> [String] {
-        let stripped = stripMarkdownFences(from: content)
-        for candidate in [stripped, extractJSONArray(from: stripped)].compactMap({ $0 }) {
-            if let decoded = try? JSONDecoder().decode([String].self, from: Data(candidate.utf8)) {
-                return decoded
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
-            }
-        }
-        return []
-    }
-
-    private static func extractJSONArray(from content: String) -> String? {
-        guard let start = content.firstIndex(of: "["),
-              let end = content.lastIndex(of: "]"),
-              start < end else { return nil }
-        return String(content[start...end])
     }
 
     private func complete(messages: [ChatMessage], temperature: Double?) async throws -> String {
@@ -106,20 +86,6 @@ struct OpenAICompatibleProvider: LLMProvider {
         return content
     }
 
-    private static func stripMarkdownFences(from content: String) -> String {
-        var stripped = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard stripped.hasPrefix("```") else { return stripped }
-
-        if let firstLineEnd = stripped.firstIndex(of: "\n") {
-            stripped = String(stripped[stripped.index(after: firstLineEnd)...])
-        }
-
-        if let closingFence = stripped.range(of: "```", options: .backwards) {
-            stripped = String(stripped[..<closingFence.lowerBound])
-        }
-
-        return stripped.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 }
 
 private struct ChatRequest: Encodable {

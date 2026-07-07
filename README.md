@@ -4,7 +4,7 @@
 
 Typofix is a tiny macOS menu bar app that works in *any* text field — Slack, Mail, your browser, anywhere you type:
 
-- **⌘ ⌘ (double-tap Command)** — instantly fixes spelling, grammar, and typos in the current field. Sub-second, silent, keeps your tone.
+- **Shift Shift (double-tap Shift)** — instantly fixes spelling, grammar, and typos in the current field. Sub-second, silent, keeps your tone.
 - **⌥ ⌥ (double-tap Option)** — opens a Spotlight-style rewrite bar with five variants of what you wrote: **Auf den Punkt** (tightened), **Polished**, **Kürzer**, **Freundlicher**, **Formeller** — plus a free-text instruction field ("mach es freundlicher"). Pick with `1–5`, arrows, or `Ctrl+J/K`, hit Enter, done.
 
 Works great in German and English. Your voice is preserved — smileys, casual register, and all. `:D`
@@ -15,11 +15,11 @@ Works great in German and English. Your voice is preserved — smileys, casual r
 
 1. Download the latest `Typofix-x.y.z.zip` from [Releases](https://github.com/Ehrax/typofix/releases), unzip, and drag `Typofix.app` to `/Applications`. The app is signed and notarized — it just opens.
 2. Launch it. Grant **Accessibility** permission when prompted (System Settings → Privacy & Security → Accessibility) — Typofix needs it to read and replace the text field you're editing.
-3. Click the `Tx` menu bar icon → **Settings…** and add your API keys:
-   - **Groq** (fast typo fix) — free key at [console.groq.com](https://console.groq.com), no credit card. Groq doesn't train on your data.
-   - **Anthropic** (rewrite bar) — key at [console.anthropic.com](https://console.anthropic.com); typical personal usage costs well under $1/month.
+3. Click the `Tx` menu bar icon → **Settings…**:
+   - **General** chooses the fast typo-fix model and the smart rewrite model.
+   - **Shortcuts** configures the double-tap shortcuts for fast fix and the rewrite bar.
+   - **Providers** stores Groq and Anthropic API keys. Apple Foundation is available without a key when Apple Intelligence is enabled on the Mac.
 4. Optional: enable **Launch at Login** from the `Tx` menu or Settings.
-5. If double-⌘ triggers Siri, turn that shortcut off: System Settings → Apple Intelligence & Siri → Keyboard shortcut.
 
 Requires macOS 26 (Tahoe) or later.
 
@@ -36,11 +36,13 @@ Settings UI covers the common cases. The underlying JSON at `~/.config/typofix/c
 ```json
 {
   "provider": "groq",
-  "model": "llama-3.1-8b-instant",
+  "model": "openai/gpt-oss-20b",
   "apiKey": "gsk_…",
   "smartProvider": "anthropic",
   "smartModel": "claude-sonnet-5",
-  "anthropicApiKey": "sk-ant-…"
+  "anthropicApiKey": "sk-ant-…",
+  "fastShortcut": "doubleShift",
+  "rewriteShortcut": "doubleOption"
 }
 ```
 
@@ -48,12 +50,17 @@ Keys can alternatively come from `GROQ_API_KEY` / `ANTHROPIC_API_KEY` environmen
 
 ### Swapping providers or models
 
-Both paths use OpenAI-compatible chat-completions endpoints behind a small `LLMProvider` protocol, so switching models is a config edit and adding a provider (Gemini, Cerebras, a local Ollama…) is a few lines in `ProviderFactory`:
+Both paths use a small `LLMProvider` protocol, so switching models is a settings change and adding a provider (Gemini, Cerebras, a local Ollama…) is a few lines in `ProviderFactory`. Supported provider IDs are:
+
+- `groq` for Groq OpenAI-compatible chat completions.
+- `anthropic` for Anthropic's OpenAI SDK compatibility endpoint.
+- `apple` for the local Apple Foundation model.
 
 ```swift
 protocol LLMProvider {
     func correct(_ text: String) async throws -> String
     func rewrite(_ text: String, instruction: String, temperature: Double?) async throws -> String
+    func rewriteVariants(_ text: String, instruction: String) async throws -> [String]
 }
 ```
 

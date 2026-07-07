@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Typofix Model Benchmark Findings</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f8f8f6;
+      --fg: #1f2328;
+      --muted: #656d76;
+      --line: #d7d9dc;
+      --panel: #ffffff;
+      --accent: #0b6bcb;
+      --warn: #9a6700;
+      --bad: #b42318;
+      --good: #1a7f37;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111315;
+        --fg: #e6edf3;
+        --muted: #9198a1;
+        --line: #30363d;
+        --panel: #161b22;
+        --accent: #58a6ff;
+      }
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 48px 24px 72px;
+    }
+
+    h1, h2, h3 {
+      line-height: 1.2;
+      margin: 0 0 14px;
+    }
+
+    h1 {
+      font-size: 34px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-top: 38px;
+      font-size: 24px;
+    }
+
+    h3 {
+      margin-top: 24px;
+      font-size: 18px;
+    }
+
+    p {
+      margin: 0 0 14px;
+      max-width: 860px;
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    .note {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 18px 0;
+    }
+
+    .note strong {
+      color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      display: table;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 13px;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--panel), var(--fg) 4%);
+      white-space: nowrap;
+    }
+
+    td.num, th.num {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.94em;
+      background: color-mix(in srgb, var(--panel), var(--fg) 7%);
+      border-radius: 4px;
+      padding: 2px 4px;
+    }
+
+    ul {
+      padding-left: 22px;
+      max-width: 900px;
+    }
+
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Typofix Model Benchmark Findings</h1>
+    <p class="meta">Captured from the live benchmark run on 2026-07-07. The benchmark is an opt-in XCTest and uses the local Typofix config for provider keys.</p>
+
+    <div class="note">
+      <p><strong>Current recommendation:</strong> keep <code>llama-3.3-70b-versatile</code> as the conservative fast-fix default for real usage, even though <code>llama-3.1-8b-instant</code> won this small benchmark. The 8B model is excellent on short snippets, but the known risk is long-form text where it can over-edit or hallucinate. The 70B model is still very fast and gives more safety margin for emails, prose, and larger text fields.</p>
+    </div>
+
+    <h2>Benchmark Scope</h2>
+    <p>The benchmark measures two paths separately:</p>
+    <ul>
+      <li><strong>Quick fix:</strong> typo correction only, scored with fragment rules for fixes, forbidden leftover typos, and preservation of voice/domain terms.</li>
+      <li><strong>Smart rewrite:</strong> five-variant rewrite generation, scored for parseability, baseline typo fixes, preservation of key terms, and obvious output contract failures.</li>
+    </ul>
+    <p>This is not a human preference eval. It is a practical regression/tuning benchmark for model choice and prompt iteration.</p>
+
+    <h2>Quick Fix Results</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th class="num">Cases</th>
+          <th class="num">Score</th>
+          <th class="num">Accuracy</th>
+          <th class="num">Avg Latency</th>
+          <th class="num">Max Latency</th>
+          <th class="num">Errors</th>
+          <th>Read</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Llama 3.1 8B Instant - Groq</code></td>
+          <td class="num">10</td>
+          <td class="num">79/79</td>
+          <td class="num good">100.0%</td>
+          <td class="num">191ms</td>
+          <td class="num">297ms</td>
+          <td class="num">0</td>
+          <td>Best on this corpus, but still risky as a default for long text because smaller models tend to over-edit and hallucinate more under length pressure.</td>
+        </tr>
+        <tr>
+          <td><code>Llama 3.3 70B - Groq</code></td>
+          <td class="num">10</td>
+          <td class="num">78/79</td>
+          <td class="num good">98.7%</td>
+          <td class="num">256ms</td>
+          <td class="num">346ms</td>
+          <td class="num">0</td>
+          <td>Best practical default for fast fix: nearly perfect in the benchmark, still extremely fast, and safer for longer input.</td>
+        </tr>
+        <tr>
+          <td><code>Claude Haiku 4.5 - Anthropic</code></td>
+          <td class="num">10</td>
+          <td class="num">77/79</td>
+          <td class="num good">97.5%</td>
+          <td class="num">907ms</td>
+          <td class="num">1350ms</td>
+          <td class="num">0</td>
+          <td>Good quality, but slower than Groq models and missed one casual German typo case.</td>
+        </tr>
+        <tr>
+          <td><code>Apple Foundation tuned prompt</code></td>
+          <td class="num">10</td>
+          <td class="num">73/79</td>
+          <td class="num warn">92.4%</td>
+          <td class="num">838ms</td>
+          <td class="num">1814ms</td>
+          <td class="num">0</td>
+          <td>Improved over the default Apple prompt, but still normalizes too much and can ignore output constraints.</td>
+        </tr>
+        <tr>
+          <td><code>Apple Foundation default prompt</code></td>
+          <td class="num">10</td>
+          <td class="num">72/79</td>
+          <td class="num warn">91.1%</td>
+          <td class="num">696ms</td>
+          <td class="num">1415ms</td>
+          <td class="num">0</td>
+          <td>Frequently over-edits: translation, formalization, and domain-word replacement.</td>
+        </tr>
+        <tr>
+          <td><code>GPT-OSS 20B - Groq</code></td>
+          <td class="num">10</td>
+          <td class="num">56/79</td>
+          <td class="num bad">70.9%</td>
+          <td class="num">1212ms</td>
+          <td class="num">3095ms</td>
+          <td class="num">2</td>
+          <td>Not reliable enough in this run: two empty responses and some over-normalization.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Quick Fix Takeaways</h3>
+    <ul>
+      <li><code>llama-3.1-8b-instant</code> should remain a candidate for a future "ultra fast short text" mode, not the global default.</li>
+      <li><code>llama-3.3-70b-versatile</code> is the right default when one shortcut must handle one-liners, emails, prose, and long text fields.</li>
+      <li>Apple Foundation should stay as a local/fallback option until prompt tuning and output cleanup reduce over-editing.</li>
+    </ul>
+
+    <h3>Apple Quick-Fix Tuning Follow-Up</h3>
+    <p>An expanded Apple-only quick-fix corpus added mixed German/English casual text, a request-like email, a product/webhook note, and longer prose. The tuned Apple prompt improved materially on that harder set:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Apple Prompt</th>
+          <th class="num">Cases</th>
+          <th class="num">Score</th>
+          <th class="num">Accuracy</th>
+          <th class="num">Avg Latency</th>
+          <th class="num">Max Latency</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Default prompt</code></td>
+          <td class="num">14</td>
+          <td class="num">101/124</td>
+          <td class="num warn">81.5%</td>
+          <td class="num">695ms</td>
+          <td class="num">1463ms</td>
+        </tr>
+        <tr>
+          <td><code>Tuned prompt</code></td>
+          <td class="num">14</td>
+          <td class="num">118/124</td>
+          <td class="num good">95.2%</td>
+          <td class="num">1285ms</td>
+          <td class="num">2244ms</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>The remaining Apple misses were consistent: it still capitalized casual starts like <code>hi max</code>, translated embedded English like <code>slowly</code>, and reformatted <code>shortcut listener</code> to <code>Shortcut-Listener</code>. Adding more narrow instructions made the score worse, which suggests prompt-only tuning is near its useful limit.</p>
+    <p>The current tuned Apple prompt is about 5,017 characters, roughly 1.25k tokens by a simple 4-chars-per-token estimate. The shared default fast prompt is about 865 characters, roughly 216 tokens.</p>
+    <p>A no-prompt Apple baseline was also tested on the same expanded quick-fix corpus. It scored <code>70/124</code> or <code>56.5%</code>, with average latency <code>1660ms</code> and max latency <code>5795ms</code>. Without instructions, Foundation Models frequently answered the text as an assistant, translated it, expanded todo lists into advice, or invented sign-offs. For Typofix quick fix, no-prompt Apple is not usable.</p>
+    <p>A compact Apple prompt was then tested as a speed/quality compromise. It is about 1,895 characters, roughly 473 tokens. On the expanded quick-fix corpus it scored <code>114/124</code> or <code>91.9%</code>, with average latency <code>831ms</code> and max latency <code>1787ms</code>. This misses a strict 800ms max target, but it is close on average and much faster than the full tuned prompt. Typofix now uses the compact Apple prompt as the Apple quick-fix default, while the full tuned prompt remains available in the catalog for benchmark comparison.</p>
+
+    <h2>Smart Rewrite Results</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th class="num">Cases</th>
+          <th class="num">Score</th>
+          <th class="num">Accuracy</th>
+          <th class="num">Avg Latency</th>
+          <th class="num">Max Latency</th>
+          <th class="num">Errors</th>
+          <th>Read</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Claude Opus 4.8 - Anthropic</code></td>
+          <td class="num">3</td>
+          <td class="num">65/68</td>
+          <td class="num good">95.6%</td>
+          <td class="num">4822ms</td>
+          <td class="num">6646ms</td>
+          <td class="num">0</td>
+          <td>Highest quality in this run, but too slow for the default interactive rewrite path.</td>
+        </tr>
+        <tr>
+          <td><code>GPT-OSS 120B - Groq</code></td>
+          <td class="num">3</td>
+          <td class="num">63/68</td>
+          <td class="num good">92.6%</td>
+          <td class="num">2262ms</td>
+          <td class="num">3312ms</td>
+          <td class="num">0</td>
+          <td>Strong quality/speed candidate for smart rewrite. Worth comparing against Haiku with human preference examples.</td>
+        </tr>
+        <tr>
+          <td><code>Claude Haiku 4.5 - Anthropic</code></td>
+          <td class="num">3</td>
+          <td class="num">62/68</td>
+          <td class="num good">91.2%</td>
+          <td class="num">1866ms</td>
+          <td class="num">2561ms</td>
+          <td class="num">0</td>
+          <td>Best balanced smart default from this run: good quality with acceptable latency.</td>
+        </tr>
+        <tr>
+          <td><code>Claude Sonnet 5 - Anthropic</code></td>
+          <td class="num">3</td>
+          <td class="num">61/68</td>
+          <td class="num good">89.7%</td>
+          <td class="num">5600ms</td>
+          <td class="num">7946ms</td>
+          <td class="num">0</td>
+          <td>Too slow for the current rewrite UX unless used as an explicit "best quality" mode.</td>
+        </tr>
+        <tr>
+          <td><code>Llama 3.3 70B - Groq</code></td>
+          <td class="num">3</td>
+          <td class="num">58/68</td>
+          <td class="num warn">85.3%</td>
+          <td class="num">695ms</td>
+          <td class="num">1048ms</td>
+          <td class="num">0</td>
+          <td>Very fast and usable, but less creative/polished than the stronger smart models.</td>
+        </tr>
+        <tr>
+          <td><code>Apple Foundation</code></td>
+          <td class="num">3</td>
+          <td class="num">45/68</td>
+          <td class="num bad">66.2%</td>
+          <td class="num">2195ms</td>
+          <td class="num">3375ms</td>
+          <td class="num">0</td>
+          <td>Not ready for smart rewrite: translated text, dropped smileys, and changed terms like flow/mergen.</td>
+        </tr>
+        <tr>
+          <td><code>GPT-OSS 20B - Groq</code></td>
+          <td class="num">3</td>
+          <td class="num">37/68</td>
+          <td class="num bad">54.4%</td>
+          <td class="num">1168ms</td>
+          <td class="num">1921ms</td>
+          <td class="num">1</td>
+          <td>Hit a Groq rate limit and had weaker quality. Not a smart default candidate from this run.</td>
+        </tr>
+        <tr>
+          <td><code>Qwen3.6 27B - Groq</code></td>
+          <td class="num">3</td>
+          <td class="num">0/68</td>
+          <td class="num bad">0.0%</td>
+          <td class="num">4164ms</td>
+          <td class="num">4233ms</td>
+          <td class="num">3</td>
+          <td>Returned chain-of-thought style output instead of parseable variants. Should not be exposed for this workflow without provider-specific prompt handling.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Smart Rewrite Takeaways</h3>
+    <ul>
+      <li>For default smart rewrite, prefer <code>Claude Haiku 4.5</code> or <code>GPT-OSS 120B</code>; both are much faster than Sonnet while keeping quality high.</li>
+      <li><code>Claude Sonnet 5</code> is too slow for the current interaction loop. It may still fit an explicit "highest quality" path, but not the default.</li>
+      <li><code>Claude Fable 5</code> was removed from the catalog after the benchmark because it was slower than Sonnet and did not justify its place in the menu.</li>
+      <li>Creativity is under-measured here. The next benchmark should include a small human-rated set for variation quality, not only typo/preservation rules.</li>
+    </ul>
+
+    <h2>Suggested Direction</h2>
+    <ul>
+      <li>Keep quick fix default on <code>llama-3.3-70b-versatile</code> for now.</li>
+      <li>Consider a routing rule later: short snippets can use 8B, longer text stays on 70B. Do this only after adding long-text hallucination cases to the benchmark.</li>
+      <li>For smart rewrite, test <code>Claude Haiku 4.5</code> vs <code>GPT-OSS 120B</code> with human preference examples. The current score says both are plausible.</li>
+      <li>Continue Apple Foundation tuning for quick fix first. The likely next work is Apple-specific pre/post processing: stricter prompts, fenced-output stripping, and maybe a local diff guard that rejects outputs changing too many non-typo tokens.</li>
+      <li>Do not tune Apple smart rewrite until its output contract is stable. It currently fails the product semantics by translating and changing casual/domain language.</li>
+    </ul>
+
+    <h2>Benchmark Command</h2>
+    <p>Run the current benchmark with:</p>
+    <p><code>TYPOFIX_RUN_MODEL_BENCHMARK=1 swift test --filter ModelBenchmarkTests</code></p>
+  </main>
+</body>
+</html>
